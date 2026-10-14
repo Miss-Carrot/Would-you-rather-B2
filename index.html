@@ -1,0 +1,523 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Would You Rather - Interactive Speaking Wheel</title>
+  <link rel="icon" type="image/png" sizes="48x48" href="favicon.png">
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Canvas Confetti -->
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+  <!-- Font Awesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
+  
+  <style>
+    body {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      background: radial-gradient(circle at center, #1e1b4b 0%, #0f172a 60%, #020617 100%);
+      color: #f8fafc;
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* Glassmorphism styling */
+    .glass-panel {
+      background: rgba(30, 41, 59, 0.7);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .glass-modal {
+      background: rgba(15, 23, 42, 0.92);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border: 1px solid rgba(139, 92, 246, 0.3);
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7), 0 0 40px rgba(139, 92, 246, 0.2);
+    }
+
+    /* Neon glows */
+    .neon-button {
+      box-shadow: 0 0 20px rgba(236, 72, 153, 0.4), inset 0 0 10px rgba(255, 255, 255, 0.3);
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .neon-button:hover:not(:disabled) {
+      box-shadow: 0 0 35px rgba(236, 72, 153, 0.7), inset 0 0 15px rgba(255, 255, 255, 0.5);
+      transform: translateY(-2px) scale(1.02);
+    }
+
+    .neon-button:active:not(:disabled) {
+      transform: translateY(1px) scale(0.98);
+    }
+
+    /* Modal Animation */
+    @keyframes zoomIn {
+      0% {
+        opacity: 0;
+        transform: scale(0.3) translateY(50px);
+      }
+      70% {
+        transform: scale(1.03) translateY(-10px);
+      }
+      100% {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+      }
+    }
+
+    .animate-zoom-in {
+      animation: zoomIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+    }
+
+    /* Canvas shadows */
+    .wheel-shadow {
+      filter: drop-shadow(0 0 25px rgba(124, 58, 237, 0.35));
+    }
+
+    /* Custom Scrollbar */
+    ::-webkit-scrollbar {
+      width: 8px;
+    }
+    ::-webkit-scrollbar-track {
+      background: rgba(15, 23, 42, 0.6);
+      border-radius: 8px;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: rgba(139, 92, 246, 0.5);
+      border-radius: 8px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: rgba(139, 92, 246, 0.8);
+    }
+  </style>
+</head>
+<body class="flex flex-col min-h-screen justify-between relative select-none">
+
+  <!-- Background decorative light blurs -->
+  <div class="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-purple-600/20 rounded-full blur-[120px] pointer-events-none"></div>
+  <div class="absolute bottom-10 left-10 w-72 h-72 bg-pink-600/15 rounded-full blur-[100px] pointer-events-none"></div>
+  <div class="absolute top-10 right-10 w-80 h-80 bg-blue-600/15 rounded-full blur-[100px] pointer-events-none"></div>
+
+  <!-- Header Header Header -->
+  <header class="w-full max-w-6xl mx-auto p-4 md:p-6 flex justify-between items-center z-10">
+    <div class="flex items-center gap-3">
+      <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-purple-600 to-pink-500 flex items-center justify-center shadow-lg shadow-purple-500/30">
+        <i class="fa-solid fa-gamepad text-white text-xl"></i>
+      </div>
+      <div>
+        <h1 class="text-xl md:text-2xl font-extrabold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-white via-purple-200 to-pink-300">
+          Speaking Wheel
+        </h1>
+        <p class="text-xs text-slate-400 font-medium">Classroom "Would You Rather" Activity</p>
+      </div>
+    </div>
+
+    <!-- Top Action Controls -->
+    <div class="flex items-center gap-3">
+      <button onclick="confirmReset()" class="glass-panel px-3.5 py-2 rounded-xl text-xs font-semibold text-slate-200 hover:text-white hover:bg-slate-700/50 transition flex items-center gap-2 border border-slate-700">
+        <i class="fa-solid fa-rotate-right text-pink-400"></i>
+        <span class="hidden sm:inline">Reset Wheel</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- Main Content Layout -->
+  <main class="flex-grow flex flex-col items-center justify-center px-4 py-2 relative z-10">
+    
+    <!-- Question Counter Badge -->
+    <div class="mb-4">
+      <span class="glass-panel px-4 py-1.5 rounded-full text-xs md:text-sm font-bold text-purple-300 border border-purple-500/30 tracking-wider shadow-inner flex items-center gap-2">
+        <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+        QUESTIONS REMAINING: <span id="questionCounter" class="text-white text-base">30 / 30</span>
+      </span>
+    </div>
+
+    <!-- Wheel Outer Container -->
+    <div class="relative flex flex-col items-center justify-center">
+      
+      <!-- Top Pointer Arrow -->
+      <div class="absolute -top-6 z-20 flex flex-col items-center filter drop-shadow-[0_4px_10px_rgba(236,72,153,0.8)]">
+        <div class="w-8 h-10 bg-gradient-to-b from-pink-500 to-rose-600 rounded-t-lg flex items-center justify-center">
+          <i class="fa-solid fa-angle-down text-white text-lg"></i>
+        </div>
+        <div class="w-0 h-0 border-l-[16px] border-l-transparent border-r-[16px] border-r-transparent border-t-[18px] border-t-rose-600"></div>
+      </div>
+
+      <!-- Canvas Box -->
+      <div class="relative p-2 md:p-3 rounded-full bg-slate-900/80 border-2 border-purple-500/30 shadow-[0_0_50px_rgba(139,92,246,0.25)] wheel-shadow mb-6">
+        <canvas id="wheelCanvas" width="460" height="460" class="max-w-[88vw] max-h-[88vw] md:max-w-[460px] md:max-h-[460px] cursor-pointer rounded-full"></canvas>
+      </div>
+
+      <!-- Spin Button -->
+      <button id="spinBtn" onclick="spinWheel()" class="neon-button px-10 py-4 bg-gradient-to-r from-pink-500 via-purple-600 to-indigo-600 text-white font-black text-xl tracking-wider rounded-2xl shadow-2xl uppercase flex items-center gap-3 border border-pink-400/40">
+        <i class="fa-solid fa-arrows-spin text-2xl animate-spin-slow"></i>
+        SPIN IT!
+      </button>
+
+    </div>
+
+  </main>
+
+  <!-- Footer -->
+  <footer class="w-full text-center py-4 text-xs text-slate-500 z-10">
+    Interactive ESL Classroom Resource &bull; Designed for engaging speaking practice
+  </footer>
+
+  <!-- QUESTION & PHRASES MODAL (ZOOM IN EFFECT) -->
+  <div id="questionModal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-md z-50 hidden flex items-center justify-center p-4">
+    <div id="modalCard" class="glass-modal w-full max-w-4xl rounded-3xl p-6 md:p-8 max-h-[90vh] overflow-y-auto flex flex-col justify-between border border-purple-500/30">
+      
+      <!-- Top Header in Modal -->
+      <div class="flex justify-between items-center mb-6 pb-4 border-b border-slate-800">
+        <div class="flex items-center gap-2 text-pink-400 text-sm font-bold uppercase tracking-wider">
+          <i class="fa-solid fa-circle-question text-lg"></i>
+          <span>Question Picked</span>
+        </div>
+        <div id="modalQuestionNum" class="px-3 py-1 bg-purple-950/80 text-purple-300 rounded-full text-xs font-bold border border-purple-700/50">
+          #1 of 30
+        </div>
+      </div>
+
+      <!-- Main Question Display -->
+      <div class="my-4 text-center">
+        <h2 id="questionText" class="text-2xl md:text-3xl font-extrabold text-white leading-relaxed tracking-tight px-2">
+          "Would you rather find true love today or win the lottery next year?"
+        </h2>
+      </div>
+
+      <!-- Speaking Helper Phrases Box -->
+      <div class="mt-6 mb-8 bg-slate-900/90 rounded-2xl p-5 border border-purple-500/20 shadow-inner">
+        <div class="flex items-center gap-2 mb-3 text-purple-300 font-bold text-sm">
+          <i class="fa-solid fa-comments text-pink-400"></i>
+          <span>Useful Speaking Phrases:</span>
+        </div>
+        
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-2.5 text-xs md:text-sm text-slate-200">
+          <div class="p-2.5 bg-slate-800/60 rounded-xl border border-slate-700/50 hover:border-purple-500/40 transition">
+            <span class="text-pink-400 font-semibold">•</span> I'm really into / I'm passionate about <span class="text-purple-300">+ noun / -ing</span>
+          </div>
+          <div class="p-2.5 bg-slate-800/60 rounded-xl border border-slate-700/50 hover:border-purple-500/40 transition">
+            <span class="text-pink-400 font-semibold">•</span> I'm (not) keen on / I'm (not) a big fan of <span class="text-purple-300">+ noun / -ing</span>
+          </div>
+          <div class="p-2.5 bg-slate-800/60 rounded-xl border border-slate-700/50 hover:border-purple-500/40 transition">
+            <span class="text-pink-400 font-semibold">•</span> I love / hate / can't stand <span class="text-purple-300">+ noun / -ing</span>
+          </div>
+          <div class="p-2.5 bg-slate-800/60 rounded-xl border border-slate-700/50 hover:border-purple-500/40 transition">
+            <span class="text-pink-400 font-semibold">•</span> It's not my cup of tea.
+          </div>
+          <div class="p-2.5 bg-slate-800/60 rounded-xl border border-slate-700/50 hover:border-purple-500/40 transition">
+            <span class="text-pink-400 font-semibold">•</span> What I like / love about ... is ...
+          </div>
+          <div class="p-2.5 bg-slate-800/60 rounded-xl border border-slate-700/50 hover:border-purple-500/40 transition">
+            <span class="text-pink-400 font-semibold">•</span> The thing I love about ... is ...
+          </div>
+          <div class="p-2.5 bg-slate-800/60 rounded-xl border border-slate-700/50 hover:border-purple-500/40 transition">
+            <span class="text-pink-400 font-semibold">•</span> I’d rather (not) <span class="text-purple-300">+ infinitive without to</span> …
+          </div>
+          <div class="p-2.5 bg-slate-800/60 rounded-xl border border-slate-700/50 hover:border-purple-500/40 transition">
+            <span class="text-pink-400 font-semibold">•</span> I’d (much) rather <span class="text-purple-300">+ infinitive without to</span> …
+          </div>
+          <div class="p-2.5 bg-slate-800/60 rounded-xl border border-slate-700/50 hover:border-purple-500/40 transition">
+            <span class="text-pink-400 font-semibold">•</span> I’d prefer (not) <span class="text-purple-300">+ infinitive with to</span> …
+          </div>
+          <div class="p-2.5 bg-slate-800/60 rounded-xl border border-slate-700/50 hover:border-purple-500/40 transition">
+            <span class="text-pink-400 font-semibold">•</span> Given the choice, I’d …
+          </div>
+        </div>
+      </div>
+
+      <!-- Action Footer -->
+      <div class="flex flex-col sm:flex-row items-center justify-between gap-4 pt-4 border-t border-slate-800">
+        <p class="text-xs text-slate-400 flex items-center gap-1.5">
+          <i class="fa-solid fa-circle-info text-purple-400"></i>
+          This question will be removed from the wheel for the next spin.
+        </p>
+        <button onclick="closeModalAndRemove()" class="w-full sm:w-auto px-8 py-3.5 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white font-bold rounded-xl shadow-lg transition flex items-center justify-center gap-2">
+          <span>Remove & Spin Next</span>
+          <i class="fa-solid fa-arrow-right"></i>
+        </button>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- COMPLETION MODAL -->
+  <div id="completeModal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-md z-50 hidden flex items-center justify-center p-4">
+    <div class="glass-modal w-full max-w-md rounded-3xl p-8 text-center border border-pink-500/40">
+      <div class="w-20 h-20 bg-gradient-to-tr from-pink-500 to-yellow-400 rounded-full mx-auto flex items-center justify-center text-3xl text-white shadow-xl mb-4">
+        <i class="fa-solid fa-trophy"></i>
+      </div>
+      <h3 class="text-2xl font-black text-white mb-2">All Questions Done!</h3>
+      <p class="text-sm text-slate-300 mb-6">Great job! You have answered all 30 questions on the wheel.</p>
+      <button onclick="resetWheel()" class="w-full py-3.5 bg-gradient-to-r from-purple-600 to-pink-600 text-white font-bold rounded-xl shadow-lg hover:opacity-90 transition">
+        Restart Activity
+      </button>
+    </div>
+  </div>
+
+  <script>
+    // Initial 30 Questions Dataset
+    const initialQuestions = [
+      "Would you rather find true love today or win the lottery next year?",
+      "Would you rather be able to teleport anywhere or travel anywhere for free?",
+      "Would you rather have a personal chef or a personal driver?",
+      "Would you rather accidentally send a screenshot of a conversation to the person you're talking about or like your ex's photo from five years ago?",
+      "Would you rather be able to understand animals or speak every human language?",
+      "Would you rather have to sing instead of speaking or dance everywhere instead of walking?",
+      "Would you rather go on a date with someone who talks too much or someone who barely speaks?",
+      "Would you rather have free coffee for life or free restaurant meals for life?",
+      "Would you rather always have perfect hair or always wear the perfect outfit?",
+      "Would you rather spend a week in a luxury hotel or a month travelling around Europe on a budget?",
+      "Would you rather have a rewind button for awkward moments or a mute button for annoying people?",
+      "Would you rather be famous on TikTok for something ridiculous or become a meme without knowing about it?",
+      "Would you rather have a robot that does all your housework or one that handles all your boring work tasks?",
+      "Would you rather live next door to your favourite celebrity or have your favourite celebrity as your personal assistant for a day?",
+      "Would you rather eat only sweet food for a week or only savoury food for a week?",
+      "Would you rather always be 20 minutes early or always be 10 minutes late?",
+      "Would you rather have a wardrobe full of amazing clothes but nowhere to go or unlimited travel opportunities but only one suitcase of clothes?",
+      "Would you rather be able to fall asleep anywhere or wake up looking amazing every morning?",
+      "Would you rather have a pet that can talk but is incredibly sarcastic or a pet that can do household chores but judges everything you do?",
+      "Would you rather go on a reality TV show or have your life turned into a sitcom?",
+      "Would you rather have to wear a ridiculous costume every Friday or speak in rhymes every Monday?",
+      "Would you rather live in a world where everything is convenient but predictable or where life is challenging but full of surprises?",
+      "Would you rather live in a society where everyone earns the same salary or one where people can earn unlimited amounts of money?",
+      "Would you rather have your dreams recorded and played back to you or have your thoughts displayed on a screen for one day?",
+      "Would you rather have a four-day working week with lower pay or a five-day week with a significantly higher salary?",
+      "Would you rather give up your smartphone for a year or give up travelling for five years?",
+      "Would you rather be able to speak every language fluently or understand what animals are saying?",
+      "Would you rather have a fridge that magically refills itself or a wardrobe that magically updates with the latest fashion?",
+      "Would you rather be stuck in an airport for 12 hours with your best friend or on a long train journey with a complete stranger who won't stop talking?",
+      "Would you rather be able to try any hobby without spending money or master any skill in just one week?"
+    ];
+
+    // Array of vibrant modern slice colors
+    const sliceColors = [
+      '#ec4899', '#8b5cf6', '#3b82f6', '#10b981', '#f59e0b', 
+      '#ef4444', '#06b6d4', '#6366f1', '#14b8a6', '#d97706',
+      '#a855f7', '#0284c7', '#e11d48', '#059669', '#ca8a04'
+    ];
+
+    // State Variables
+    let activeQuestions = [];
+    let currentRotation = 0; // Cumulative angle in radians
+    let isSpinning = false;
+    let selectedQuestionIndex = -1;
+
+    // Canvas Setup
+    const canvas = document.getElementById('wheelCanvas');
+    const ctx = canvas.getContext('2d');
+    const centerX = canvas.width / 2;
+    const centerY = canvas.height / 2;
+    const radius = canvas.width / 2 - 15;
+
+    // Initialize state
+    function init() {
+      activeQuestions = initialQuestions.map((q, idx) => ({ text: q, originalIndex: idx + 1 }));
+      currentRotation = 0;
+      updateCounter();
+      drawWheel();
+    }
+
+    function updateCounter() {
+      document.getElementById('questionCounter').innerText = `${activeQuestions.length} / ${initialQuestions.length}`;
+    }
+
+    // Render Wheel
+    function drawWheel() {
+      const numSlices = activeQuestions.length;
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      if (numSlices === 0) {
+        ctx.save();
+        ctx.beginPath();
+        ctx.arc(centerX, centerY, radius, 0, 2 * Math.PI);
+        ctx.fillStyle = '#1e293b';
+        ctx.fill();
+        ctx.strokeStyle = '#475569';
+        ctx.lineWidth = 4;
+        ctx.stroke();
+
+        ctx.fillStyle = '#94a3b8';
+        ctx.font = 'bold 16px Plus Jakarta Sans';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('All Questions Answered!', centerX, centerY);
+        ctx.restore();
+        return;
+      }
+
+      const sliceAngle = (2 * Math.PI) / numSlices;
+
+      ctx.save();
+      ctx.translate(centerX, centerY);
+      ctx.rotate(currentRotation);
+
+      for (let i = 0; i < numSlices; i++) {
+        const startAngle = i * sliceAngle;
+        const endAngle = startAngle + sliceAngle;
+        const color = sliceColors[i % sliceColors.length];
+
+        ctx.beginPath();
+        ctx.moveTo(0, 0);
+        ctx.arc(0, 0, radius, startAngle, endAngle);
+        ctx.closePath();
+        ctx.fillStyle = color;
+        ctx.fill();
+
+        ctx.lineWidth = 2;
+        ctx.strokeStyle = 'rgba(15, 23, 42, 0.4)';
+        ctx.stroke();
+
+        ctx.save();
+        ctx.rotate(startAngle + sliceAngle / 2);
+        ctx.textAlign = 'right';
+        ctx.textBaseline = 'middle';
+        ctx.fillStyle = '#ffffff';
+
+        let fontSize = numSlices > 20 ? 12 : (numSlices > 10 ? 14 : 16);
+        ctx.font = `800 ${fontSize}px Plus Jakarta Sans`;
+
+        const labelText = `${activeQuestions[i].originalIndex}`;
+        ctx.shadowColor = 'rgba(0, 0, 0, 0.6)';
+        ctx.shadowBlur = 4;
+        ctx.fillText(labelText, radius - 20, 0);
+
+        ctx.restore();
+      }
+
+      ctx.beginPath();
+      ctx.arc(0, 0, 30, 0, 2 * Math.PI);
+      ctx.fillStyle = '#0f172a';
+      ctx.fill();
+      ctx.lineWidth = 4;
+      ctx.strokeStyle = '#8b5cf6';
+      ctx.stroke();
+
+      ctx.beginPath();
+      ctx.arc(0, 0, 10, 0, 2 * Math.PI);
+      ctx.fillStyle = '#ec4899';
+      ctx.fill();
+
+      ctx.restore();
+    }
+
+    // Spin Logic (Completely Silent - No Audio)
+    function spinWheel() {
+      if (isSpinning || activeQuestions.length === 0) return;
+
+      isSpinning = true;
+      document.getElementById('spinBtn').disabled = true;
+
+      const numSlices = activeQuestions.length;
+      const targetIndex = Math.floor(Math.random() * numSlices);
+      selectedQuestionIndex = targetIndex;
+
+      const sliceAngle = (2 * Math.PI) / numSlices;
+      const sliceCenterAngle = (targetIndex + 0.5) * sliceAngle;
+      
+      let targetAngleInCircle = (1.5 * Math.PI) - sliceCenterAngle;
+      const currentMod = currentRotation % (2 * Math.PI);
+      
+      const fullRotations = (5 + Math.floor(Math.random() * 3)) * 2 * Math.PI;
+      
+      let deltaAngle = targetAngleInCircle - currentMod;
+      if (deltaAngle < 0) {
+        deltaAngle += 2 * Math.PI;
+      }
+
+      const totalRotationToTarget = currentRotation + deltaAngle + fullRotations;
+
+      const startTime = performance.now();
+      const duration = 3800; // milliseconds
+      const startAngle = currentRotation;
+
+      function animateSpin(currentTime) {
+        const elapsed = currentTime - startTime;
+        const progress = Math.min(elapsed / duration, 1);
+
+        const easeOut = 1 - Math.pow(1 - progress, 3);
+        currentRotation = startAngle + (totalRotationToTarget - startAngle) * easeOut;
+
+        drawWheel();
+
+        if (progress < 1) {
+          requestAnimationFrame(animateSpin);
+        } else {
+          isSpinning = false;
+          document.getElementById('spinBtn').disabled = false;
+          onSpinComplete();
+        }
+      }
+
+      requestAnimationFrame(animateSpin);
+    }
+
+    // On Wheel Stop
+    function onSpinComplete() {
+      confetti({
+        particleCount: 80,
+        spread: 70,
+        origin: { y: 0.6 }
+      });
+
+      const selected = activeQuestions[selectedQuestionIndex];
+      document.getElementById('questionText').innerText = `"${selected.text}"`;
+      document.getElementById('modalQuestionNum').innerText = `Question #${selected.originalIndex}`;
+
+      const modal = document.getElementById('questionModal');
+      const modalCard = document.getElementById('modalCard');
+      
+      modal.classList.remove('hidden');
+      modalCard.classList.add('animate-zoom-in');
+    }
+
+    // Close Modal and permanently remove the asked question
+    function closeModalAndRemove() {
+      const modal = document.getElementById('questionModal');
+      const modalCard = document.getElementById('modalCard');
+
+      modalCard.classList.remove('animate-zoom-in');
+      modal.classList.add('hidden');
+
+      if (selectedQuestionIndex !== -1 && activeQuestions.length > 0) {
+        activeQuestions.splice(selectedQuestionIndex, 1);
+        selectedQuestionIndex = -1;
+        updateCounter();
+        drawWheel();
+
+        if (activeQuestions.length === 0) {
+          setTimeout(() => {
+            document.getElementById('completeModal').classList.remove('hidden');
+          }, 400);
+        }
+      }
+    }
+
+    function confirmReset() {
+      if (confirm("Reset the wheel with all 30 questions again?")) {
+        resetWheel();
+      }
+    }
+
+    function resetWheel() {
+      document.getElementById('completeModal').classList.add('hidden');
+      document.getElementById('questionModal').classList.add('hidden');
+      init();
+    }
+
+    window.onload = function() {
+      init();
+    };
+
+    canvas.addEventListener('click', () => {
+      if (!isSpinning) spinWheel();
+    });
+  </script>
+</body>
+</html>
